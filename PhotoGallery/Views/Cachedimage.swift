@@ -9,11 +9,9 @@ import SwiftUI
 import ImageIO
 
 struct CachedImage: View {
-    let url: URL?
     var contentMode: ContentMode = .fill
-
-    @State private var image: Image?
-    @State private var failed = false
+    var image: Image?
+    @Environment(PhotosViewModel.self) private var viewModel
 
     var body: some View {
         ZStack {
@@ -22,7 +20,7 @@ struct CachedImage: View {
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
                     .transition(.opacity)
-            } else if failed {
+            } else if viewModel.failed {
                 Rectangle()
                     .fill(.quaternary)
                 Image(systemName: "photo")
@@ -33,53 +31,14 @@ struct CachedImage: View {
                 ProgressView()
             }
         }
-        .task(id: url) {
-            await load()
-        }
-    }
-
-    private func load() async {
-
-        guard let url else { failed = true
-
-            return
-        }
-        
-        failed = false
-        
-        do {
-            
-            let data = try await ImageLoader.shared.imageData(for: url)
-            
-            if let loaded = Image(data: data) {
-                
-                withAnimation(.easeIn(duration: 0.2)) {
-                    
-                    image = loaded
-                }
-                
-            } else {
-                print("Couldn't turn data into an image for \(url)")
-                
-                failed = true
-                
-            }
-            
-        } catch {
-            print("Image failed for \(url): \(error)")
-            
-            if !Task.isCancelled {
-                
-                failed = true
-            }
+        .task(id: viewModel.url) {
+            await viewModel.load()
         }
     }
 }
 
 #Preview {
-    CachedImage(url: Photo.sample.thumbnailURL)
-        .frame(width: 200, height: 200)
-        .clipped()
+    CachedImage()
 }
 
 extension Image {

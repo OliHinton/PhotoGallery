@@ -7,6 +7,7 @@
 
 import Foundation
 import Observation
+import SwiftUI
 
 enum LoadState: Equatable {
     case idle
@@ -22,14 +23,54 @@ final class PhotosViewModel {
     private(set) var state: LoadState = .idle
     private(set) var isLoadingMore = false
     private(set) var canLoadMore = true
+    
+     var image: Image?
+     var failed = false
+     let url: URL?
 
     private var nextPage = 1
     private let pageSize: Int
     private let service: PhotoServiceProtocol
 
-    init(service: PhotoServiceProtocol? = nil, pageSize: Int = 30) {
+    init(service: PhotoServiceProtocol? = nil, pageSize: Int = 30, url: URL? = nil) {
         self.service = service ?? PhotoService()
         self.pageSize = pageSize
+        self.url = url 
+    }
+    
+    func load() async {
+
+        guard let url else { failed = true
+
+            return
+        }
+        
+        failed = false
+        
+        do {
+            
+            let data = try await ImageLoader.shared.imageData(for: url)
+            
+            if let loaded = Image(data: data) {
+                
+                withAnimation(.easeIn(duration: 0.2)) {
+                    
+                    image = loaded
+                }
+                
+            } else {
+                
+                failed = true
+                
+            }
+            
+        } catch {
+            
+            if !Task.isCancelled {
+                
+                failed = true
+            }
+        }
     }
 
     func loadFirstPage() async {
